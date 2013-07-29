@@ -207,6 +207,8 @@ package object scalaz {
   type MinOption[A] = Option[A] @@ Tags.Min
   type MaxOption[A] = Option[A] @@ Tags.Max
 
+  type ZipStream[A] = Stream[A] @@ Tags.Zip
+
   //
   // Lens type aliases
   //

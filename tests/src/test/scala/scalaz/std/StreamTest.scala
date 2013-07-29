@@ -54,4 +54,11 @@ class StreamTest extends Spec {
     (rnge.foldRight(List[Int]())(_++_)
       must be_===(F.foldRight(rnge, List[Int]())(_++_)))
   }
+
+  "Zip applicative is found" ! check {
+    import scalaz.Tags.Zip
+    import scalaz.syntax.apply._
+    (Zip(Stream(1,2)) : ZipStream[Int] |@| Zip(Stream(true,false))).tupled.force must_== Stream((1,true), (2,false)).force
+    (Zip(Stream(1,2)) |@| Zip(Stream(true,false))).tupled.force must_== Stream((1,true), (2,false)).force
+  }
 }

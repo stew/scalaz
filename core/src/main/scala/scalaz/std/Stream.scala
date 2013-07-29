@@ -2,7 +2,7 @@ package scalaz
 package std
 
 
-trait StreamInstances {
+trait StreamInstances0 {
   implicit val streamInstance: Traverse[Stream] with MonadPlus[Stream] with Each[Stream] with Index[Stream] with Length[Stream] with Zip[Stream] with Unzip[Stream] with IsEmpty[Stream] with Cobind[Stream] = new Traverse[Stream] with MonadPlus[Stream] with Each[Stream] with Index[Stream] with Length[Stream] with Zip[Stream] with Unzip[Stream] with IsEmpty[Stream] with Cobind[Stream] {
     override def cojoin[A](a: Stream[A]) = a.tails.toStream.init
     def cobind[A, B](fa: Stream[A])(f: Stream[A] => B): Stream[B] = map(cojoin(fa))(f)
@@ -49,25 +49,6 @@ trait StreamInstances {
     def unzip[A, B](a: Stream[(A, B)]) = a.unzip
   }
 
-  import Tags.Zip
-
-  /**
-   * An alternative [[scalaz.Applicative]] instance for `Stream`, discriminated by the type tag [[scalaz.Tags.Zip]],
-   * that zips streams together.
-   *
-   * Example:
-   * {{{
-   * import scalaz.Tags.Zip
-   * streamZipApplicative.apply2(Zip(Stream(1, 2)), Zip(Stream(3, 4)))(_ * _) // Stream(3, 8)
-   * }}}
-   */
-  implicit val streamZipApplicative: Applicative[({type λ[α]=Stream[α] @@ Zip})#λ] = new Applicative[({type λ[α]=Stream[α] @@ Zip})#λ] {
-    def point[A](a: => A) = Zip(Stream.continually(a))
-    def ap[A, B](fa: => (Stream[A] @@ Zip))(f: => (Stream[A => B] @@ Zip)) = {
-      Zip(if (f.isEmpty || fa.isEmpty) Stream.empty[B]
-      else Stream.cons((f.head)(fa.head), ap(Zip(fa.tail))(Zip(f.tail))))
-    }
-  }
 
   implicit def streamMonoid[A] = new Monoid[Stream[A]] {
     def append(f1: Stream[A], f2: => Stream[A]) = f1 #::: f2
@@ -83,6 +64,28 @@ trait StreamInstances {
 
 
   // TODO order, ...
+}
+
+trait StreamInstances extends StreamInstances0 {
+  import Tags.Zip
+
+  /**
+   * An alternative [[scalaz.Applicative]] instance for `Stream`, discriminated by the type tag [[scalaz.Tags.Zip]],
+   * that zips streams together.
+   *
+   * Example:
+   * {{{
+   * import scalaz.Tags.Zip
+   * streamZipApplicative.apply2(Zip(Stream(1, 2)), Zip(Stream(3, 4)))(_ * _) // Stream(3, 8)
+   * }}}
+   */
+  implicit val streamZipApplicative: Applicative[ZipStream] = new Applicative[ZipStream] {
+    def point[A](a: => A) = Zip(Stream.continually(a))
+    def ap[A, B](fa: => (Stream[A] @@ Zip))(f: => (Stream[A => B] @@ Zip)) = {
+      Zip(if (f.isEmpty || fa.isEmpty) Stream.empty[B]
+      else Stream.cons((f.head)(fa.head), ap(Zip(fa.tail))(Zip(f.tail))))
+    }
+  }
 }
 
 trait StreamFunctions {
