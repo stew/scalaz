@@ -5,6 +5,7 @@ import std.list._
 import std.vector._
 import std.anyVal._
 import std.map._
+import std.set._
 import std.string._
 
 import org.scalameter.api._
@@ -17,7 +18,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
     def mon: Monoid[T[A]]
     def fold: Foldable[T]
     def point(a: A): T[A]
-    def fromSeq(a: A*): T[A]
+    def fromSeq(a: Vector[A]): T[A]
   }
 
   val spacedust = Gen.enumeration("spacedust")(new Spacedust {
@@ -27,7 +28,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
                                                  def fold = implicitly[Foldable[IList]]
                                                  override def toString = "IList[Int]"
                                                  def point(a: Int) = IList(a)
-                                                 def fromSeq(a: Int*) = IList(a: _*)
+                                                 def fromSeq(a: Vector[A]) = IList(a: _*)
                                                },
                                                new Spacedust {
                                                  type T[A] = List[A]
@@ -36,7 +37,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
                                                  def fold = implicitly[Foldable[List]]
                                                  override def toString = "List[Int]"
                                                  def point(a: Int) = List(a)
-                                                 def fromSeq(a: Int*) = List(a: _*)
+                                                 def fromSeq(a: Vector[A]) = List(a: _*)
                                                },
                                                new Spacedust {
                                                  type T[A] = DList[A]
@@ -45,7 +46,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
                                                  def fold = implicitly[Foldable[DList]]
                                                  override def toString = "DList[Int]"
                                                  def point(a: Int) = DList(a)
-                                                 def fromSeq(a: Int*) = DList(a: _*)
+                                                 def fromSeq(a: Vector[A]) = DList(a: _*)
                                                },
                                                new Spacedust {
                                                  type T[A] = Vector[A]
@@ -54,7 +55,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
                                                  def fold = implicitly[Foldable[Vector]]
                                                  override def toString = "Vector[Int]"
                                                  def point(a: Int) = Vector(a)
-                                                 def fromSeq(a: Int*) = Vector(a: _*)
+                                                 def fromSeq(a: Vector[A]) = Vector(a: _*)
                                                },
                                                new Spacedust {
                                                  type T[A] = Map[String,A]
@@ -63,7 +64,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
                                                  def fold = implicitly[Foldable[T]]
                                                  override def toString = "Map[String, Int]"
                                                  def point(a: Int) = Map(a.toString →a)
-                                                 def fromSeq(a: Int*) = Map((a.map(a ⇒ a.toString→a)): _*)
+                                                 def fromSeq(a: Vector[A]) = Map((a.map(a ⇒ a.toString→a)): _*)
                                                },
                                                new Spacedust {
                                                  type T[A] = String ==>> A
@@ -72,8 +73,27 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
                                                  def fold = implicitly[Foldable[T]]
                                                  override def toString = "String ==>> Int"
                                                  def point(a: Int) = ==>>[String,Int](a.toString → a)
-                                                 def fromSeq(a: Int*) = ==>>((a.map(a ⇒ a.toString→a)): _*)
-                                               })
+                                                 def fromSeq(a: Vector[A]) = ==>>((a.map(a ⇒ a.toString→a)): _*)
+                                               },
+                                               new Spacedust {
+                                                 type T[A] = ISet[A]
+                                                 type A = Int
+                                                 def mon = implicitly[Monoid[ISet[A]]]
+                                                 def fold = implicitly[Foldable[ISet]]
+                                                 override def toString = "ISet[Int]"
+                                                 def point(a: Int) = ISet.singleton(a)
+                                                 def fromSeq(a: Vector[A]) = ISet.fromFoldable(a)
+                                               },
+                                               new Spacedust {
+                                                 type T[A] = Set[A]
+                                                 type A = Int
+                                                 def mon = implicitly[Monoid[Set[A]]]
+                                                 def fold = implicitly[Foldable[Set]]
+                                                 override def toString = "Set[Int]"
+                                                 def point(a: Int) = Set(a)
+                                                 def fromSeq(a: Vector[A]) = Set(a: _*)
+                                               }
+                                               )
                                                
 
   performance of "monoid appends" in {
@@ -85,7 +105,7 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
         }
       }
     }
-    measure method "prepend" in {
+    measure method "monoid prepend" in {
       using(spacedust) in { sd ⇒
         var fa = sd.mon.zero
         for(n ← 1 to 200000) {
@@ -95,17 +115,17 @@ object MonoidShootout extends PerformanceTest.Quickbenchmark {
     }
     measure method "create from list" in {
 
-      val x = (1 to 20000).toList
+      val x = (1 to 20000).toVector
       using(spacedust) in { sd ⇒
         for(n ← 1 to 200) {
-          sd.fromSeq(x: _*)
+          sd.fromSeq(x)
         }
       }
     }
     measure method "append two big lists" in {
-      val x = (1 to 20000).toList
+      val x = (1 to 20000).toVector
       using(spacedust) in { sd ⇒
-        val x2 = sd.fromSeq(x: _*)
+        val x2 = sd.fromSeq(x)
         for(n ← 1 to 200) {
           sd.mon.append(x2, x2)
         }
