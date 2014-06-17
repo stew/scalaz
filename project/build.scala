@@ -299,6 +299,19 @@ object build extends Build {
     )
   )
 
+  lazy val benchmarks = Project(
+    id = "benchmarks",
+    base = file("benchmarks"),
+    dependencies = Seq(core),
+    settings = standardSettings ++Seq[Sett](
+      name := "scalaz-benchmarks",
+      publishArtifact := false,
+      libraryDependencies += "com.github.axel22" %% "scalameter" % "0.4" % "test",
+      testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+      parallelExecution in Test := false
+    )
+  )
+
   lazy val publishSetting = publishTo <<= (version).apply{
     v =>
       val nexus = "https://oss.sonatype.org/"
