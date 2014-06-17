@@ -1,3 +1,5 @@
+Output from running "benchmarks/test" in sbt:
+
     [info] Compiling 1 Scala source to /Users/stew/src/scalaz/benchmarks/target/scala-2.10/test-classes...
     [info] ::Benchmark monoid appends.append::
     [info] cores: 8
