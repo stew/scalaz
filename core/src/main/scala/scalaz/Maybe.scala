@@ -68,8 +68,7 @@ sealed abstract class Maybe[A] {
     cata(_ => true, false)
 
   /** True if no underlying value is present */
-  final def isEmpty: Boolean =
-    cata(_ => false, true)
+  def isEmpty: Boolean
 
   final def map[B](f: A => B): Maybe[B] =
     cata(f andThen just[B], empty[B])
@@ -147,9 +146,15 @@ sealed abstract class Maybe[A] {
 
 object Maybe extends MaybeInstances with MaybeFunctions {
 
-  final case class Empty[A]() extends Maybe[A]
+  final case object Empty extends Maybe[Nothing] {
+    final override def isEmpty = true
+    def unapply[A](m: Maybe[A]) = m.isEmpty
+    def apply[A](): Maybe[A] = this.asInstanceOf[Maybe[A]] // YOLO
+  }
 
-  final case class Just[A](a: A) extends Maybe[A]
+  final case class Just[A](a: A) extends Maybe[A] {
+    final override def isEmpty = false
+  }
 
   val optionMaybeIso: Option <~> Maybe =
     new IsoFunctorTemplate[Option, Maybe] {
