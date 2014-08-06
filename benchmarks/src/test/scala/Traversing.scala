@@ -5,7 +5,17 @@ import org.scalameter.api._
 import scalaz._
 import Scalaz._
 
-object Traversing extends PerformanceTest.Quickbenchmark {
+trait Traversing extends PerformanceTest {
+
+  def executor = new org.scalameter.execution.LocalExecutor(
+    Warmer.Default(),
+    Aggregator.min,
+    measurer
+  )
+    def measurer: org.scalameter.Measurer = new Measurer.Default
+    def reporter: org.scalameter.Reporter = new org.scalameter.reporting.LoggingReporter
+    def persistor: Persistor = Persistor.None
+
   sealed trait Optional[O[_]] {
     def cata[A,B](notThere: B, there: A ⇒ B)(fa: O[A]): B
     def there[A](a: A): O[A]
@@ -65,11 +75,25 @@ new Traversury {
                                                       type A = Int
                                                       def f = (_ % 2 == 0)
                                                     })
-
+}
+object PerfTraversing extends Traversing {
   // this shit doesn't work
   val opts = Context(verbose → false)
 
-  performance of "traversury" config (opts) in {
+  performance of "traversury speed test" config (opts) in {
+    measure method "sequence" in {
+      using(theTraversers) in { tr ⇒
+        tr.sequence
+      }
+    }
+  }
+}
+
+object MemoryTraversing extends Traversing {
+
+  override def measurer = new Executor.Measurer.MemoryFootprint
+
+  performance of "traversury mem footprint" in {
     measure method "sequence" in {
       using(theTraversers) in { tr ⇒
         tr.sequence

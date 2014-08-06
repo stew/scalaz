@@ -265,7 +265,7 @@ object build extends Build {
     settings = standardSettings ++Seq[Sett](
       name := "scalaz-benchmarks",
       publishArtifact := false,
-      libraryDependencies += "com.github.axel22" %% "scalameter" % "0.5-M2" % "test",
+      libraryDependencies += "com.storm-enroute" %% "scalameter" % "0.6" % "test",
       testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
       parallelExecution in Test := false
     )
