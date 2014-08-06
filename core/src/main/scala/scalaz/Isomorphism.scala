@@ -213,24 +213,6 @@ trait IsomorphismOrder[F, G] extends Order[F] {
   def order(x: F, y: F): Ordering = G.order(iso.to(x), iso.to(y))
 }
 
-@deprecated("Each is deprecated", "7.1")
-trait IsomorphismEach[F[_], G[_]] extends Each[F] {
-  implicit def G: Each[G]
-
-  def iso: F <~> G
-
-  def each[A](fa: F[A])(f: A => Unit) = G.each(iso.to(fa))(f)
-}
-
-@deprecated("Index is deprecated, use Foldable instead", "7.1")
-trait IsomorphismIndex[F[_], G[_]] extends Index[F] {
-  implicit def G: Index[G]
-
-  def iso: F <~> G
-
-  def index[A](fa: F[A], n: Int): Option[A] = G.index(iso.to(fa), n)
-}
-
 trait IsomorphismFunctor[F[_], G[_]] extends Functor[F] {
   implicit def G: Functor[G]
 
@@ -347,6 +329,15 @@ trait IsomorphismTraverse1[F[_], G[_]] extends Traverse1[F] with IsomorphismTrav
 
   override def traverse1Impl[H[_]: Apply, A, B](fa: F[A])(f: A => H[B]): H[F[B]] =
     Apply[H].map(G.traverse1Impl(iso.to(fa))(f))(iso.from.apply)
+}
+
+trait IsomorphismOptional[F[_], G[_]] extends Optional[F] {
+  implicit def G: Optional[G]
+
+  def iso: F <~> G
+
+  override def pextract[B, A](fa: F[A]): F[B] \/ A =
+    G.pextract(iso.to(fa)).leftMap(iso.from)
 }
 
 trait IsomorphismBifunctor[F[_, _], G[_, _]] extends Bifunctor[F] {

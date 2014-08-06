@@ -38,14 +38,6 @@ final class DList[A] private[scalaz](f: (List[A]) => Trampoline[List[A]]) {
       case x :: xs => return_(f(x, fromList(xs)))
     }).run
 
-  /** Get the first element of the list. */
-  @deprecated("unsafe; use headOption", "7.1.0")
-  def head: A = uncons(sys.error("DList.head: empty list"), (x, _) => x)
-
-  /** Get the tail of the list. */
-  @deprecated("unsafe; use tailOption", "7.1.0")
-  def tail: DList[A] = uncons(sys.error("DList.tail: empty list"), (_, y) => y)
-
   /** Get the first element of the list, if any. */
   def headOption: Option[A] = uncons(None, (x, _) => Some(x))
 
@@ -67,7 +59,7 @@ final class DList[A] private[scalaz](f: (List[A]) => Trampoline[List[A]]) {
   def flatMap[B](f: A => DList[B]) =
     foldr(DList[B]())((x, y) => f(x) ++ y)
 
-  def zip[B](bs: ⇒ DList[B]): DList[(A,B)] = uncons(DList(), (h,t) => bs.uncons(DList(), (h2,t2) => (h → h2) +: (t zip t2)))
+  def zip[B](bs: => DList[B]): DList[(A,B)] = uncons(DList(), (h,t) => bs.uncons(DList(), (h2,t2) => (h → h2) +: (t zip t2)))
 
 }
 
@@ -85,7 +77,7 @@ sealed abstract class DListInstances {
     def bind[A, B](as: DList[A])(f: A => DList[B]) = as flatMap f
     def plus[A](a: DList[A], b: => DList[A]) = a ++ b
     def empty[A] = DList()
-    def zip[A,B](a: => DList[A], b: ⇒ DList[B]): DList[(A, B)] = a zip b
+    def zip[A,B](a: => DList[A], b: => DList[B]): DList[(A, B)] = a zip b
     def traverseImpl[F[_], A, B](fa: DList[A])(f: A => F[B])(implicit F: Applicative[F]): F[DList[B]] =
       fa.foldr(F.point(DList[B]()))((a, fbs) => F.apply2(f(a), fbs)(_ +: _))
   }

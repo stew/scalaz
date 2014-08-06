@@ -3,7 +3,7 @@ package scalaz.concurrent
 import java.util.concurrent.{ScheduledExecutorService, ConcurrentLinkedQueue, ExecutorService, Executors}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import scalaz.{Catchable, Nondeterminism, Reducer, Traverse, \/, -\/, \/-}
+import scalaz.{Catchable, MonadError, Nondeterminism, Reducer, Traverse, \/, -\/, \/-}
 import scalaz.syntax.monad._
 import scalaz.std.list._
 import scalaz.Free.Trampoline
@@ -18,10 +18,9 @@ import scala.concurrent.duration._
  * with some convenience functions for handling exceptions. Its
  * `Monad` and `Nondeterminism` instances are derived from `Future`.
  *
- * `Task` (and `Future`) differ in several key ways from
- * `scalaz.concurrent.Promise` and the `Future` implementation in
- * Scala 2.10 , and have a number of advantages. See the documentation
- * for `scalaz.concurrent.Future` for more information.
+ * `Task` (and `Future`) differ in several key ways from the `Future`
+ * implementation in Scala 2.10 , and have a number of advantages. See the
+ * documentation for `scalaz.concurrent.Future` for more information.
  *
  * `Task` is exception-safe when constructed using the primitives
  * in the companion object, but when calling the constructor, you
@@ -224,9 +223,9 @@ class Task[+A](val get: Future[Throwable \/ A]) {
 
 object Task {
 
-  implicit val taskInstance: Nondeterminism[Task] with Catchable[Task] = new Nondeterminism[Task] with Catchable[Task] {
+  implicit val taskInstance: Nondeterminism[Task] with Catchable[Task] with MonadError[({type λ[α,β] = Task[β]})#λ,Throwable] = new Nondeterminism[Task] with Catchable[Task] with MonadError[({type λ[α,β] = Task[β]})#λ,Throwable] {
     val F = Nondeterminism[Future]
-    def point[A](a: => A) = new Task(Future.now(Try(a)))
+    def point[A](a: => A) = new Task(Future.delay(Try(a)))
     def bind[A,B](a: Task[A])(f: A => Task[B]): Task[B] =
       a flatMap f
     def chooseAny[A](h: Task[A], t: Seq[Task[A]]): Task[(A, Seq[Task[A]])] =
@@ -240,6 +239,9 @@ object Task {
     }
     def fail[A](e: Throwable): Task[A] = new Task(Future.now(-\/(e)))
     def attempt[A](a: Task[A]): Task[Throwable \/ A] = a.attempt
+    def raiseError[A](e: Throwable): Task[A] = fail(e)
+    def handleError[A](fa: Task[A])(f: Throwable => Task[A]): Task[A] =
+      fa.handleWith { case t => f(t) }
   }
 
   /** signals task was interrupted **/

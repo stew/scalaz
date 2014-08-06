@@ -49,11 +49,6 @@ final case class Zipper[+A](lefts: Stream[A], focus: A, rights: Stream[A]) {
     next getOrElse z
 
   /**
-   * Moves to the next element to the right of focus, or error if there is no element on the right.
-   */
-  def tryNext: Zipper[A] = nextOr(sys.error("cannot move to next element"))
-
-  /**
    * Possibly moves to the previous element to the left of focus.
    */
   def previous: Option[Zipper[A]] = lefts match {
@@ -206,7 +201,7 @@ final case class Zipper[+A](lefts: Stream[A], focus: A, rights: Stream[A]) {
     if (p(focus)) Some(this)
     else {
       val c = this.positions
-      std.stream.merge(c.lefts, c.rights).find((x => p(x.focus)))
+      std.stream.interleave(c.lefts, c.rights).find((x => p(x.focus)))
     }
 
   /**
@@ -265,7 +260,8 @@ final case class Zipper[+A](lefts: Stream[A], focus: A, rights: Stream[A]) {
     case (_, Stream.Empty)            =>
       val xs = lefts.reverse
       zipper(rights, xs.head, xs.tail.append(Stream(focus)))
-    case (_, _)                       => tryNext
+    case (_, r #:: rs)                =>
+      zipper(Stream.cons(focus, lefts), r, rs)
   }
 
   /**

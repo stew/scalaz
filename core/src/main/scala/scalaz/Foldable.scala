@@ -53,7 +53,7 @@ trait Foldable[F[_]]  { self =>
   /**Left-associative fold of a structure. */
   def foldLeft[A, B](fa: F[A], z: B)(f: (B, A) => B): B = {
     import Dual._, Endo._, syntax.std.all._
-    foldMap(fa)((a: A) => Dual(Endo.endo(f.flip.curried(a))))(dualMonoid) apply (z)
+    Tag.unwrap(foldMap(fa)((a: A) => Dual(Endo.endo(f.flip.curried(a))))(dualMonoid)) apply (z)
   }
 
   /**Right-associative, monadic fold of a structure. */
@@ -63,7 +63,11 @@ trait Foldable[F[_]]  { self =>
   /**Left-associative, monadic fold of a structure. */
   def foldLeftM[G[_], A, B](fa: F[A], z: B)(f: (B, A) => G[B])(implicit M: Monad[G]): G[B] =
     foldRight[A, B => G[B]](fa, M.point(_))((a, b) => w => M.bind(f(w, a))(b))(z)
-  
+
+  /** Specialization of foldRightM when `B` has a `Monoid`. */
+  def foldMapM[G[_], A, B](fa: F[A])(f: A => G[B])(implicit B: Monoid[B], G: Monad[G]): G[B] =
+    foldRightM[G, A, B](fa, B.zero)((a, b2) => G.map(f(a))(b1 => B.append(b1, b2)))
+
   /** Combine the elements of a structure using a monoid. */
   def fold[M: Monoid](t: F[M]): M = foldMap[M, M](t)(x => x)
 
@@ -97,7 +101,7 @@ trait Foldable[F[_]]  { self =>
     foldRight(fa, None: Option[B])((a, optB) =>
       optB map (f(a, _)) orElse Some(z(a)))
   def foldRight1Opt[A](fa: F[A])(f: (A, => A) => A): Option[A] =
-    foldMapRight1Opt(fa)(conforms)(f)
+    foldMapRight1Opt(fa)(identity)(f)
   def foldr1Opt[A](fa: F[A])(f: A => (=> A) => A): Option[A] = foldRight(fa, None: Option[A])((a, optA) => optA map (aa => f(a)(aa)) orElse Some(a))
 
   /**Curried version of `foldLeft` */
@@ -106,7 +110,7 @@ trait Foldable[F[_]]  { self =>
     foldLeft(fa, None: Option[B])((optB, a) =>
       optB map (f(_, a)) orElse Some(z(a)))
   def foldLeft1Opt[A](fa: F[A])(f: (A, A) => A): Option[A] =
-    foldMapLeft1Opt(fa)(conforms)(f)
+    foldMapLeft1Opt(fa)(identity)(f)
   def foldl1Opt[A](fa: F[A])(f: A => A => A): Option[A] = foldLeft(fa, None: Option[A])((optA, a) => optA map (aa => f(aa)(a)) orElse Some(a))
 
   /**Curried version of `foldRightM` */
@@ -138,9 +142,6 @@ trait Foldable[F[_]]  { self =>
   def indexOr[A](fa: F[A], default: => A, i: Int): A =
     index(fa, i) getOrElse default
 
-  /** Unbiased sum of monoidal values. */
-  @deprecated("use `fold`, it has the exact same signature and implementation", "7.1")
-  def foldMapIdentity[A](fa: F[A])(implicit F: Monoid[A]): A = foldMap(fa)(a => a)
   def toList[A](fa: F[A]): List[A] = foldLeft(fa, scala.List[A]())((t, h) => h :: t).reverse
   def toIndexedSeq[A](fa: F[A]): IndexedSeq[A] = foldLeft(fa, IndexedSeq[A]())(_ :+ _)
   def toSet[A](fa: F[A]): Set[A] = foldLeft(fa, Set[A]())(_ + _)

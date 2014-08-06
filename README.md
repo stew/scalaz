@@ -6,7 +6,7 @@ It provides purely functional data structures to complement those from the Scala
 It defines a set of foundational type classes (e.g. `Functor`, `Monad`) and corresponding instances for
 a large number of data structures.
 
-[![Build Status](https://secure.travis-ci.org/scalaz/scalaz.png?branch=scalaz-seven)](http://travis-ci.org/scalaz/scalaz)
+[![Build Status](https://secure.travis-ci.org/scalaz/scalaz.png?branch=series/7.2.x)](http://travis-ci.org/scalaz/scalaz)
 
 ## Getting Scalaz
 
@@ -120,10 +120,8 @@ Scalaz has been been modularised.
 * **scalaz-core**: Type class hierarchy, data structures, type class instances for the Scala and Java standard libraries,
                  implicit conversions / syntax to access these.
 * **scalaz-effect**: Data structures to represent and compose IO effects in the type system.
-* **scalaz-concurrent**: Actor and Promise implementation
+* **scalaz-concurrent**: Actor and Future implementation
 * **scalaz-iteratee**: Experimental new Iteratee implementation
-* **scalaz-typelevel**: Type-level data structures, type-safe printf
-* **scalaz-xml**: Error-correcting XML parser
 
 ### Type Class Hierarchy
 

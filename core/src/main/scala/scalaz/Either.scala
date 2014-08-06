@@ -1,6 +1,7 @@
 package scalaz
 
 import scala.util.control.NonFatal
+import scala.reflect.ClassTag
 import Liskov.<~<
 
 /** Represents a disjunction: a result that is either an `A` or a `B`.
@@ -356,12 +357,6 @@ object \/ extends DisjunctionInstances with DisjunctionFunctions {
 }
 
 sealed abstract class DisjunctionInstances extends DisjunctionInstances0 {
-  /** Turns out that Either is just a glorified tuple; who knew? */
-  type GlorifiedTuple[+A, +B] =
-  A \/ B
-}
-
-sealed abstract class DisjunctionInstances0 extends DisjunctionInstances1 {
   implicit def DisjunctionOrder[A: Order, B: Order]: Order[A \/ B] =
     new Order[A \/ B] {
       def order(a1: A \/ B, a2: A \/ B) =
@@ -379,7 +374,7 @@ sealed abstract class DisjunctionInstances0 extends DisjunctionInstances1 {
     }
 }
 
-sealed abstract class DisjunctionInstances1 extends DisjunctionInstances2 {
+sealed abstract class DisjunctionInstances0 extends DisjunctionInstances1 {
   implicit def DisjunctionEqual[A: Equal, B: Equal]: Equal[A \/ B] =
     new Equal[A \/ B] {
       def equal(a1: A \/ B, a2: A \/ B) =
@@ -396,8 +391,8 @@ sealed abstract class DisjunctionInstances1 extends DisjunctionInstances2 {
     }
 }
 
-sealed abstract class DisjunctionInstances2 extends DisjunctionInstances3 {
-  implicit def DisjunctionInstances2[L]: Traverse[({type l[a] = L \/ a})#l] with Monad[({type l[a] = L \/ a})#l] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] = new Traverse[({type l[a] = L \/ a})#l] with Monad[({type l[a] = L \/ a})#l] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] {
+sealed abstract class DisjunctionInstances1 extends DisjunctionInstances2 {
+  implicit def DisjunctionInstances1[L]: Traverse[({type l[a] = L \/ a})#l] with Monad[({type l[a] = L \/ a})#l] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] with MonadError[\/, L] = new Traverse[({type l[a] = L \/ a})#l] with Monad[({type l[a] = L \/ a})#l] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] with MonadError[\/, L] {
     override def map[A, B](fa: L \/ A)(f: A => B) =
       fa map f
 
@@ -429,12 +424,20 @@ sealed abstract class DisjunctionInstances2 extends DisjunctionInstances3 {
       case l@ -\/(_) => -\/(l)
       case r@ \/-(_) => r
     }
+
+    def raiseError[A](e: L): L \/ A =
+      -\/(e)
+
+    def handleError[A](fa: L \/ A)(f: L => L \/ A): L \/ A = fa match {
+      case -\/(e) => f(e)
+      case r => r
+    }
   }
 
 }
 
-sealed abstract class DisjunctionInstances3 {
-  implicit val DisjunctionInstances3 : Bitraverse[\/] = new Bitraverse[\/] {
+sealed abstract class DisjunctionInstances2 {
+  implicit val DisjunctionInstances2 : Bitraverse[\/] = new Bitraverse[\/] {
     override def bimap[A, B, C, D](fab: A \/ B)
                                   (f: A => C, g: B => D) = fab bimap (f, g)
 
@@ -456,19 +459,11 @@ trait DisjunctionFunctions {
   /** Construct a disjunction value from a standard `scala.Either`. */
   def fromEither[A, B](e: Either[A, B]): A \/ B =
     e fold (left, right)
-
-  /** Evaluate the given value, which might throw an exception. */
-  @deprecated("catches fatal exceptions, use fromTryCatchThrowable or fromTryCatchNonFatal", "7.1.0")
-  def fromTryCatch[T](a: => T): Throwable \/ T = try {
-    \/-(a)
-  } catch {
-    case e: Throwable => left(e)
-  }
   
-  def fromTryCatchThrowable[T, E <: Throwable](a: => T)(implicit nn: NotNothing[E], ex: ClassManifest[E]): E \/ T = try {
+  def fromTryCatchThrowable[T, E <: Throwable](a: => T)(implicit nn: NotNothing[E], ex: ClassTag[E]): E \/ T = try {
     \/-(a)
   } catch {
-    case e if ex.erasure.isInstance(e) => -\/(e.asInstanceOf[E])
+    case e if ex.runtimeClass.isInstance(e) => -\/(e.asInstanceOf[E])
   }
 
   def fromTryCatchNonFatal[T](a: => T): Throwable \/ T = try {

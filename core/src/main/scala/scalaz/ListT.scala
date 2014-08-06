@@ -14,19 +14,13 @@ final case class ListT[M[_], A](run: M[List[A]]){
     }
   }
 
-  @deprecated("Underlying is deprecated. Use run instead", "7.1")
-  def underlying: M[List[A]] = run
-
   def ::(a: A)(implicit M: Functor[M]) : ListT[M, A] = new ListT(M.map(run)(list => a :: list))
 
   def isEmpty(implicit M: Functor[M]) : M[Boolean] = M.map(run)(_.isEmpty)
 
-  @deprecated("Head is deprecated. Use ListT#headOption instead", "7.1")
-  def head(implicit M: Functor[M]) : M[A] = M.map(run)(_.head)
-
   def headOption(implicit M: Functor[M]) : OptionT[M, A] = new OptionT(M.map(run)(_.headOption))
 
-  def headMaybe(implicit M: Functor[M]) : MaybeT[M, A] = new MaybeT(M.map(run)(l ⇒ Maybe.fromOption(l.headOption)))
+  def headMaybe(implicit M: Functor[M]) : MaybeT[M, A] = new MaybeT(M.map(run)(l => Maybe.fromOption(l.headOption)))
   
   def tailM(implicit M: Applicative[M]) : M[ListT[M, A]] = M.map(uncons)(_.get._2)
 
@@ -52,6 +46,8 @@ final case class ListT[M[_], A](run: M[List[A]]){
       case nonEmpty => nonEmpty.map(f).reduce(_ ++ _).run
     }
   })
+
+  def flatMapF[B](f: A => M[List[B]])(implicit M: Monad[M]) : ListT[M, B] = flatMap(f andThen ListT.apply)
 
   def map[B](f: A => B)(implicit M: Functor[M]) : ListT[M, B] = new ListT(M.map(run)(_.map(f)))
 

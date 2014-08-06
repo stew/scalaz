@@ -10,9 +10,6 @@ final case class OptionT[F[_], A](run: F[Option[A]]) {
 
   def map[B](f: A => B)(implicit F: Functor[F]): OptionT[F, B] = new OptionT[F, B](mapO(_ map f))
 
-  @deprecated("Each/foreach is deprecated", "7.1")
-  def foreach(f: A => Unit)(implicit E: Each[F]): Unit = E.each(run)(_ foreach f)
-
   def flatMap[B](f: A => OptionT[F, B])(implicit F: Monad[F]): OptionT[F, B] = new OptionT[F, B](
     F.bind(self.run) {
       case None    => F.point(None: Option[B])
@@ -114,6 +111,8 @@ sealed abstract class OptionTInstances extends OptionTInstances0 {
   }
 
   implicit def optionTEqual[F[_], A](implicit F0: Equal[F[Option[A]]]): Equal[OptionT[F, A]] = F0.contramap((_: OptionT[F, A]).run)
+
+  implicit def optionTShow[F[_], A](implicit F0: Show[F[Option[A]]]): Show[OptionT[F, A]] = Contravariant[Show].contramap(F0)(_.run)
 }
 
 trait OptionTFunctions {

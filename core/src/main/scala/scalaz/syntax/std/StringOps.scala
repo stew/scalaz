@@ -4,15 +4,13 @@ package std
 
 import scalaz.std.{string => s}
 
-final class StringOps(self: String) {
+final class StringOps(val self: String) extends AnyVal {
   /**
    * Returns the same String value if the given value is 1 otherwise pluralises this String by appending an "s" unless
    * this String ends with "y" and not one of ["ay", "ey", "iy", "oy", "uy"] in which case the 'y' character is chopped and "ies"
    * is appended.
    */
   def plural(n: Long): String = s.plural(self, n)
-
-  def encode(implicit c: CharSet): Array[Byte] = s.encode(self)
 
   /**
    * Constructs a non-empty list with the value if it is not empty, otherwise, throws an error.

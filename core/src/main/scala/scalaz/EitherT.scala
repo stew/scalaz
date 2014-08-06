@@ -1,6 +1,7 @@
 package scalaz
 
 import scala.util.control.NonFatal
+import scala.reflect.ClassTag
 
 /**
  * Represents a computation of type `F[A \/ B]`.
@@ -73,11 +74,6 @@ final case class EitherT[F[_], A, B](run: F[A \/ B]) {
   def traverse[G[_], C](f: B => G[C])(implicit F: Traverse[F], G: Applicative[G]): G[EitherT[F, A, C]] =
     G.map(F.traverse(run)(o => Traverse[({type λ[α] = (A \/ α)})#λ].traverse(o)(f)))(EitherT(_))
 
-  /** Run the side-effect on the right of this disjunction. */
-  @deprecated("Each/foreach is deprecated", "7.1")
-  def foreach(f: B => Unit)(implicit F: Each[F]): Unit =
-    F.each(run)(_ foreach f)
-
   /** Apply a function in the environment of the right of this
     * disjunction.  Because it runs my `F` even when `f`'s `\/` fails,
     * it is not consistent with `ap`.
@@ -88,6 +84,10 @@ final case class EitherT[F[_], A, B](run: F[A \/ B]) {
   /** Bind through the right of this disjunction. */
   def flatMap[C](f: B => EitherT[F, A, C])(implicit F: Monad[F]): EitherT[F, A, C] =
     EitherT(F.bind(run)(_.fold(a => F.point(-\/(a): (A \/ C)), b => f(b).run)))
+
+  /** Bind the inner monad through the right of this disjunction. */
+  def flatMapF[C](f: B => F[A \/ C])(implicit F: Monad[F]): EitherT[F, A, C] =
+    EitherT(F.bind(run)(_.fold(a => F.point(-\/(a): (A \/ C)), b => f(b))))
 
   /** Fold on the right of this disjunction. */
   def foldRight[Z](z: => Z)(f: (B, => Z) => Z)(implicit F: Foldable[F]): Z =
@@ -209,19 +209,11 @@ object EitherT extends EitherTInstances with EitherTFunctions {
   def fromEither[F[_], A, B](e: F[Either[A, B]])(implicit F: Functor[F]): EitherT[F, A, B] =
     apply(F.map(e)(_ fold (\/.left, \/.right)))
 
-  /** Evaluate the given value, which might throw an exception. */
-  @deprecated("catches fatal exceptions, use fromTryCatchThrowable or fromTryCatchNonFatal", "7.1.0")
-  def fromTryCatch[F[_], A](a: => F[A])(implicit F: Applicative[F]): EitherT[F, Throwable, A] = try {
-    right(a)
-  } catch {
-    case e: Throwable => left(F.point(e))
-  }
-
-  def fromTryCatchThrowable[F[_], A, B <: Throwable](a: => F[A])(implicit F: Applicative[F], nn: NotNothing[B], ex: ClassManifest[B]): EitherT[F, B, A] =
+  def fromTryCatchThrowable[F[_], A, B <: Throwable](a: => F[A])(implicit F: Applicative[F], nn: NotNothing[B], ex: ClassTag[B]): EitherT[F, B, A] =
     try {
       right(a)
     } catch {
-      case e if ex.erasure.isInstance(e) => left(F.point(e.asInstanceOf[B]))
+      case e if ex.runtimeClass.isInstance(e) => left(F.point(e.asInstanceOf[B]))
     }
 
   def fromTryCatchNonFatal[F[_], A](a: => F[A])(implicit F: Applicative[F]): EitherT[F, Throwable, A] =
@@ -233,7 +225,13 @@ object EitherT extends EitherTInstances with EitherTFunctions {
 
 }
 
-sealed abstract class EitherTInstances2 {
+sealed abstract class EitherTInstances3 {
+  implicit def eitherTMonadError[F[_], E](implicit F0: Monad[F]): MonadError[({type λ[α, β] = EitherT[F, α, β]})#λ, E] = new EitherTMonadError[F, E] {
+    implicit def F = F0
+  }
+}
+
+sealed abstract class EitherTInstances2 extends EitherTInstances3 {
   implicit def eitherTFunctor[F[_], L](implicit F0: Functor[F]): Functor[({type λ[α]=EitherT[F, L, α]})#λ] = new EitherTFunctor[F, L] {
     implicit def F = F0
   }
@@ -277,6 +275,8 @@ sealed abstract class EitherTInstances extends EitherTInstances0 {
   implicit def eitherTHoist[A]: Hoist[({type λ[α[_], β] = EitherT[α, A, β]})#λ] = new EitherTHoist[A] {}
 
   implicit def eitherTEqual[F[_], A, B](implicit F0: Equal[F[A \/ B]]): Equal[EitherT[F, A, B]] = F0.contramap((_: EitherT[F, A, B]).run)
+
+  implicit def eitherTShow[F[_], A, B](implicit F0: Show[F[A \/ B]]): Show[EitherT[F, A, B]] = Contravariant[Show].contramap(F0)(_.run)
 }
 
 trait EitherTFunctions {
@@ -397,4 +397,14 @@ private trait EitherTMonadListen[F[_, _], W, A] extends MonadListen[({type λ[α
 
     EitherT[({type λ[α] = F[W, α]})#λ, A, (B, W)](tmp)
   }
+}
+
+private trait EitherTMonadError[F[_], E] extends MonadError[({ type λ[α, β] = EitherT[F, α, β] })#λ, E] with EitherTMonad[F, E] {
+  implicit def F: Monad[F]
+  def raiseError[A](e: E): EitherT[F, E, A] = EitherT(F.point(-\/(e)))
+  def handleError[A](fa: EitherT[F, E, A])(f: E => EitherT[F, E, A]): EitherT[F, E, A] =
+    EitherT(F.bind(fa.run) {
+      case -\/(e) => f(e).run
+      case r => F.point(r)
+    })
 }

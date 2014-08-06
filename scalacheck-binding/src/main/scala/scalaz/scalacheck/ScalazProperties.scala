@@ -238,7 +238,7 @@ object ScalazProperties {
 
   private def resizeProp(p: Prop, max: Int): Prop = new Prop{
     def apply(params: Gen.Parameters) =
-      p(params.resize(params.size % (max + 1)))
+      p(params.withSize(params.size % (max + 1)))
   }
 
   object traverse {
@@ -503,20 +503,20 @@ object ScalazProperties {
     }
   }
 
-  @deprecated("MetricSpace is deprecated", "7.0.1")
-  object metricSpace {
-    def nonNegativity[F](implicit F: MetricSpace[F], af: Arbitrary[F]) = forAll(F.metricSpaceLaw.nonNegativity _)
-    def identity[F](implicit F: MetricSpace[F], af: Arbitrary[F]) = forAll(F.metricSpaceLaw.identity _)
-    def equality[F](implicit F: MetricSpace[F], E: Equal[F], af: Arbitrary[F]) = forAll(F.metricSpaceLaw.equality _)
-    def symmetry[F](implicit F: MetricSpace[F], af: Arbitrary[F]) = forAll(F.metricSpaceLaw.symmetry _)
-    def triangleInequality[F](implicit F: MetricSpace[F], af: Arbitrary[F]) = forAll(F.metricSpaceLaw.triangleInequality _)
-    def laws[F](implicit F: MetricSpace[F], E: Equal[F], af: Arbitrary[F]) = new Properties("metric space") {
-      property("nonNegativity") = nonNegativity[F]
-      property("identity") = identity[F]
-      property("equality") = equality[F]
-      property("symmetry") = symmetry[F]
-      property("triangleInequality") = triangleInequality[F]
-    }
-  }
+  object monadError {
+    def raisedErrorsHandled[F[_, _], E, A](implicit me: MonadError[F, E], eq: Equal[F[E, A]], ae: Arbitrary[E], afea: Arbitrary[E => F[E,A]]) =
+      forAll(me.monadErrorLaw.raisedErrorsHandled[A] _)
+    def errorsRaised[F[_, _], E, A](implicit me: MonadError[F, E], eq: Equal[F[E, A]], ae: Arbitrary[E], aa: Arbitrary[A]) =
+      forAll(me.monadErrorLaw.errorsRaised[A] _)
+    def errorsStopComputation[F[_, _], E, A](implicit me: MonadError[F, E], eq: Equal[F[E, A]], ae: Arbitrary[E], aa: Arbitrary[A]) =
+      forAll(me.monadErrorLaw.errorsStopComputation[A] _)
 
+    def laws[F[_, _], E](implicit me: MonadError[F, E], am: Arbitrary[F[E, Int]], afap: Arbitrary[F[E, Int => Int]], aeq: Equal[F[E, Int]], ae: Arbitrary[E]) =
+      new Properties("monad error") {
+        include(monad.laws[({ type λ[α] = F[E, α] })#λ])
+        property("raisedErrorsHandled") = raisedErrorsHandled[F, E, Int]
+        property("errorsRaised") = errorsRaised[F, E, Int]
+        property("errorsStopComputation") = errorsStopComputation[F, E, Int]
+      }
+  }
 }

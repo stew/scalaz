@@ -89,6 +89,16 @@ sealed abstract class Free[S[_], A] {
     case \/-(r) => Return(r)
   }
 
+  /**
+   * Substitutes a free monad over the given functor into the suspension functor of this program.
+   * `Free` is a monad in an endofunctor category and this is its monadic bind.
+   */
+  final def flatMapSuspension[T[_]](f: S ~> ({type λ[α] = Free[T, α]})#λ)(
+    implicit S: Functor[S]): Free[T, A] = resume match {
+    case -\/(s) => f(s).flatMap(_.flatMapSuspension(f))
+    case \/-(r) => Return(r)
+  }
+
   /** Applies a function `f` to a value in this monad and a corresponding value in the dual comonad, annihilating both. */
   final def zapWith[G[_], B, C](bs: Cofree[G, B])(f: (A, B) => C)(implicit S: Functor[S], G: Functor[G], d: Zap[S, G]): C =
     Zap.monadComonadZap.zapWith(this, bs)(f)
@@ -309,10 +319,16 @@ trait FreeFunctions {
   def return_[S[_], A](value: => A)(implicit S: Applicative[S]): Free[S, A] =
     Suspend[S, A](S.point(Return[S, A](value)))
 
+  /** Return the given value in the free monad. */
+  def point[S[_], A](value: => A): Free[S, A] = Return[S, A](value)
+
+  /** Alias for `point` */
+  def pure[S[_], A](value: => A): Free[S, A] = point(value)
+
   def suspend[S[_], A](value: => Free[S, A])(implicit S: Applicative[S]): Free[S, A] =
     Suspend[S, A](S.point(value))
 
-  /** Suspends a value within a functor in a single step. */
+  /** Suspends a value within a functor in a single step. Monadic unit for a higher-order monad. */
   def liftF[S[_], A](value: => S[A])(implicit S: Functor[S]): Free[S, A] =
     Suspend(S.map(value)(Return[S, A]))
 
@@ -323,6 +339,10 @@ trait FreeFunctions {
   /** A free monad over a free functor of `S`. */
   def liftFC[S[_], A](s: S[A]): FreeC[S, A] =
     liftFU(Coyoneda lift s)
+
+  /** Monadic join for the higher-order monad `Free` */
+  def joinF[S[_], A](value: Free[({type λ[α] = Free[S, α]})#λ, A])(implicit S: Functor[S]): Free[S, A] =
+    value.flatMapSuspension(NaturalTransformation.refl[({type λ[α] = Free[S, α]})#λ])
 
   /** Interpret a free monad over a free functor of `S` via natural transformation to monad `M`. */
   def runFC[S[_], M[_], A](sa: FreeC[S, A])(interp: S ~> M)(implicit M: Monad[M]): M[A] =
