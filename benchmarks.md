@@ -94,6 +94,10 @@ _Benchmark list things.flatMap_
 	
 _Benchmark traversury.sequence_
 
-    (traversury -> List[Option]): 910.013
-    (traversury -> List[Maybe]): 1077.379
+    (traversury -> List[Option] all Some): 1047.835
+    (traversury -> List[Maybe] all Just): 1275.31
+    (traversury -> List[Maybe with singleton Empty] all Just): 1159.015
+    (traversury -> List[Option] half Some): 937.745
+    (traversury -> List[Maybe] half empty): 1107.159
+    (traversury -> List[Maybe with singleton empty] half empty): 1036.039
 

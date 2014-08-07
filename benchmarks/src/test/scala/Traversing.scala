@@ -51,9 +51,15 @@ trait Traversing extends PerformanceTest {
     def there[A](a: A): Maybe[A] = Maybe.Just(a)
     def notThere[A]: Maybe[A] = Maybe.Empty()
   }
+  val maybesOptional = new Optional[MaybeS] {
+    def cata[A,B](notThere: B, there: A ⇒ B)(fa: MaybeS[A]): B =
+      fa.cata(there, notThere)
+    def there[A](a: A): MaybeS[A] = MaybeS.Just(a)
+    def notThere[A]: MaybeS[A] = MaybeS.Empty()
+  }
 
   val theTraversers = Gen.enumeration("traversury")(new Traversury {
-                                                      override def toString = "List[Option]"
+                                                      override def toString = "List[Option] all Some"
                                                       type O[A] = Option[A]
                                                       type F[A] = List[A]
                                                       val T = Traverse[List]
@@ -62,15 +68,60 @@ trait Traversing extends PerformanceTest {
                                                       val fa: List[Int] = (1 to 1000000).toList
 
                                                       type A = Int
-                                                      def f = (_ % 2 == 0)
+                                                      def f = (x ⇒ true)
                                                     },
-new Traversury {
-                                                      override def toString = "List[Maybe]"
+                                                    new Traversury {
+                                                      override def toString = "List[Maybe] all Just"
                                                       type O[A] = Maybe[A]
                                                       type F[A] = List[A]
                                                       val T = Traverse[List]
                                                       val O = maybeOptional
                                                       implicit val OA = Applicative[Maybe]
+                                                      val fa: List[Int] = (1 to 1000000).toList
+                                                      type A = Int
+                                                      def f = (x ⇒ true)
+                                                    },
+                                                    new Traversury {
+                                                      override def toString = "List[Maybe with singleton Empty] all Just"
+                                                      type O[A] = MaybeS[A]
+                                                      type F[A] = List[A]
+                                                      val T = Traverse[List]
+                                                      val O = maybesOptional
+                                                      implicit val OA = Applicative[MaybeS]
+                                                      val fa: List[Int] = (1 to 1000000).toList
+                                                      type A = Int
+                                                      def f = (x ⇒ true)
+                                                    },
+                                                    new Traversury {
+                                                      override def toString = "List[Option] half Some"
+                                                      type O[A] = Option[A]
+                                                      type F[A] = List[A]
+                                                      val T = Traverse[List]
+                                                      val O = optionOptional
+                                                      implicit val OA: Applicative[Option] = scalaz.std.option.optionInstance
+                                                      val fa: List[Int] = (1 to 1000000).toList
+
+                                                      type A = Int 
+                                                      def f = (_ % 2 == 0)
+                                                    },
+                                                    new Traversury {
+                                                      override def toString = "List[Maybe] half empty"
+                                                      type O[A] = Maybe[A]
+                                                      type F[A] = List[A]
+                                                      val T = Traverse[List]
+                                                      val O = maybeOptional
+                                                      implicit val OA = Applicative[Maybe]
+                                                      val fa: List[Int] = (1 to 1000000).toList
+                                                      type A = Int
+                                                      def f = (_ % 2 == 0)
+                                                    },
+                                                    new Traversury {
+                                                      override def toString = "List[Maybe with singleton empty] half empty"
+                                                      type O[A] = MaybeS[A]
+                                                      type F[A] = List[A]
+                                                      val T = Traverse[List]
+                                                      val O = maybesOptional
+                                                      implicit val OA = Applicative[MaybeS]
                                                       val fa: List[Int] = (1 to 1000000).toList
                                                       type A = Int
                                                       def f = (_ % 2 == 0)
@@ -88,7 +139,7 @@ object PerfTraversing extends Traversing {
     }
   }
 }
-
+/* not useful
 object MemoryTraversing extends Traversing {
 
   override def measurer = new Executor.Measurer.MemoryFootprint
@@ -101,3 +152,4 @@ object MemoryTraversing extends Traversing {
     }
   }
 }
+ */ 
